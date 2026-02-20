@@ -38,7 +38,9 @@ final class RateLimitViewModel: ObservableObject {
   @Published private(set) var isRefreshing = false
   @Published private(set) var statusText = "Not refreshed yet"
   @Published private(set) var errorText: String?
+  @Published private(set) var launchAtLoginErrorText: String?
   @Published private(set) var burnTrendSymbol = "→"
+  @Published private(set) var launchAtLoginEnabled: Bool
 
   var isExperimentalMode: Bool {
     dataCollectionMode == .experimentalLocalSession
@@ -89,6 +91,7 @@ final class RateLimitViewModel: ObservableObject {
     refreshIntervalSeconds = Self.supportedRefreshIntervals.contains(savedInterval) ? savedInterval : 60
 
     dataCollectionMode = DataCollectionMode(rawValue: defaults.string(forKey: Self.dataCollectionModeDefaultsKey) ?? "") ?? .officialAPI
+    launchAtLoginEnabled = environment.loginItemService.isEnabled
 
     startTimer()
     Task { await refreshIfConfigured() }
@@ -120,6 +123,13 @@ final class RateLimitViewModel: ObservableObject {
     NSApplication.shared.terminate(nil)
   }
 
+  func setLaunchAtLoginEnabled(_ enabled: Bool) {
+    guard launchAtLoginEnabled != enabled else { return }
+    DispatchQueue.main.async { [weak self] in
+      self?.applyLaunchAtLoginEnabled(enabled)
+    }
+  }
+
   private func startTimer() {
     timer?.invalidate()
     timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(refreshIntervalSeconds), repeats: true) { [weak self] _ in
@@ -146,6 +156,22 @@ final class RateLimitViewModel: ObservableObject {
     guard apiKey != value else { return }
     apiKey = value
     environment.apiKeyStore.save(apiKey: value)
+  }
+
+  private func applyLaunchAtLoginEnabled(_ enabled: Bool) {
+    do {
+      try environment.loginItemService.setEnabled(enabled)
+      launchAtLoginEnabled = environment.loginItemService.isEnabled
+      if enabled && !launchAtLoginEnabled {
+        launchAtLoginErrorText = "Open at login needs approval in System Settings > General > Login Items."
+      } else {
+        launchAtLoginErrorText = nil
+      }
+    } catch {
+      launchAtLoginEnabled = environment.loginItemService.isEnabled
+      launchAtLoginErrorText = "Could not update Open at login: \(error.localizedDescription)"
+      logError("launch_at_login_update_failed", error: error)
+    }
   }
 
   private func refreshIfConfigured(force: Bool = false) async {
