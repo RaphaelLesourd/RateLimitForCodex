@@ -25,6 +25,14 @@ struct AutoRefreshSectionView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
 
+      if !viewModel.isExperimentalMode, let tokenCost = viewModel.lastRefreshTokenCost {
+        let burnText = viewModel.estimatedHourlyTokenBurnPercent
+          .map { " • ~\($0.formatted(.number.precision(.fractionLength(2))))%/h \(viewModel.burnTrendSymbol)" } ?? ""
+        Text("Cost \(tokenCost)t\(burnText)")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+      }
+
       HStack(spacing: 8) {
         Button("Reload now") {
           viewModel.refresh()
@@ -40,4 +48,5 @@ struct AutoRefreshSectionView: View {
       }
     }
   }
+
 }

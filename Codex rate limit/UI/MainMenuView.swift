@@ -63,8 +63,7 @@ struct MainMenuView: View {
 }
 
 private enum AppSupportInfo {
-  // Replace with your real support inbox before store submission.
-  static let email = "support@ratelimitmonitor.app"
+  static let email = "raphparis@icloud.com"
 }
 
 private struct AboutSupportView: View {
@@ -85,26 +84,17 @@ private struct AboutSupportView: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 8) {
       Text(appName)
         .font(.title3.weight(.semibold))
+      Text("⚠️ Not affiliated with OpenAI.")
+      Group {
+        Text("Copyright (c) 2026 Raph - Version \(version) (\(build))")
+        Text("Created with Codex.")
 
-      Text("Version \(version) (\(build))")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-
-      Text("Copyright (c) 2026 Raphael Lesourd")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-
-      Text("Created with Codex (agent-built).")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-
-      Text("Not affiliated with OpenAI.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
       Divider()
 
       VStack(alignment: .leading, spacing: 4) {

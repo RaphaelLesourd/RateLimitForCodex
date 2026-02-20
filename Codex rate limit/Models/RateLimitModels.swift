@@ -7,6 +7,7 @@ struct RateLimitSnapshot {
   let tokensLimit: Int?
   let tokensRemaining: Int?
   let tokensReset: String?
+  let requestTokensUsed: Int?
   let sessionPrimaryUsedPercent: Double?
   let sessionPrimaryWindowMinutes: Int?
   let sessionPrimaryResetsAt: Date?

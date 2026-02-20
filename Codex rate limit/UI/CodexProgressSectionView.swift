@@ -70,10 +70,10 @@ struct CodexProgressSectionView: View {
   }
 
   private func progressColor(usedPercent: Double) -> Color {
-    if usedPercent >= 60 {
+    if usedPercent >= 80 {
       return .red
     }
-    if usedPercent >= 30 {
+    if usedPercent >= 50 {
       return .orange
     }
     return .green

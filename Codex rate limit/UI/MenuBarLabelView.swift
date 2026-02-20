@@ -27,10 +27,10 @@ struct MenuBarLabelView: View {
 
   private func navProgressColor(fromUsedPercent usedPercent: Double?) -> NSColor {
     let displayedUsedPercent = displayedUsedPercent(fromUsedPercent: usedPercent)
-    if displayedUsedPercent >= 60 {
+    if displayedUsedPercent >= 80 {
       return .systemRed
     }
-    if displayedUsedPercent >= 30 {
+    if displayedUsedPercent >= 50 {
       return .systemOrange
     }
     return .systemGreen
