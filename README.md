@@ -7,6 +7,11 @@
 
 A lightweight macOS menu bar app that checks rate-limit usage at a glance.
 
+## Download
+
+[Download app here (macOS ZIP)](https://github.com/RaphaelLesourd/RateLimitForCodex/releases/latest/download/Rate%20Limit%20Monitor-macOS.zip)  
+If the direct asset URL changes, download from [Releases](https://github.com/RaphaelLesourd/RateLimitForCodex/releases).
+
 ## Important Legal/Brand Notes
 
 - This app is **not affiliated with OpenAI**.
@@ -14,31 +19,31 @@ A lightweight macOS menu bar app that checks rate-limit usage at a glance.
 - App naming is neutral (no Codex/GPT/model name in the app title).
 
 Suggested store listing line:
-- `Not affiliated with OpenAI. Uses the OpenAI API in official mode.`
+- `Not affiliated with OpenAI. Uses the OpenAI API in API Key mode.`
 
 ## Data Modes
 
 This app provides two modes:
 
-1. `Official API (Recommended)`
+1. `API Key (Recommended)`
 - Uses OpenAI API key authentication.
 - Calls `POST /v1/responses` and reads rate-limit headers.
 - Best mode for publishing/compliance.
 
-2. `Experimental Local`
+2. `Codex Session`
 - Reads local session files from `~/.codex/sessions`.
 - Intended for advanced/internal workflows.
 - Not an official OpenAI API integration path.
 
-Default mode is `Official API`.
+Default mode is `API Key`.
 
 ## What It Does
 
 - Runs as a macOS menu bar app (`MenuBarExtra`).
 - Stores API key in Keychain.
 - Supports auto-refresh (`60s`, `120s`, `300s`) and manual refresh.
-- Shows request/token remaining limits (official mode).
-- Shows primary/secondary window usage (experimental mode).
+- Shows request/token remaining limits (API Key mode).
+- Shows primary/secondary window usage (Codex Session mode).
 - Includes an About & Support popup with version/build/contact.
 
 ## Agent-Built Project 🤖
@@ -51,10 +56,10 @@ Purpose of this project:
 
 ## Run Locally
 
-1. Open `/Users/birkyboy/Development/Codex rate limit/Codex rate limit.xcodeproj` in Xcode.
+1. Open `Codex rate limit.xcodeproj` in Xcode.
 2. Select scheme `Codex rate limit`.
 3. Build/run for macOS.
-4. Choose data mode and provide API key for official mode.
+4. Choose data mode and provide API key for API Key mode.
 
 ## What Is Not Shared
 
