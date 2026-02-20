@@ -4,8 +4,8 @@ struct CodexProgressSectionView: View {
   let snapshot: RateLimitSnapshot
 
   var body: some View {
-    let primaryWindowTitle = windowTitle(windowMinutes: snapshot.sessionPrimaryWindowMinutes, fallback: "Primary window")
-    let secondaryWindowTitle = windowTitle(windowMinutes: snapshot.sessionSecondaryWindowMinutes, fallback: "Secondary window")
+    let primaryWindowTitle = windowTitle(windowMinutes: snapshot.sessionPrimaryWindowMinutes, fallbackKey: "progress.primary_window_fallback")
+    let secondaryWindowTitle = windowTitle(windowMinutes: snapshot.sessionSecondaryWindowMinutes, fallbackKey: "progress.secondary_window_fallback")
 
     VStack(alignment: .leading, spacing: 12) {
       progressRow(
@@ -22,15 +22,15 @@ struct CodexProgressSectionView: View {
     }
   }
 
-  private func windowTitle(windowMinutes: Int?, fallback: String) -> String {
-    guard let windowMinutes else { return fallback }
+  private func windowTitle(windowMinutes: Int?, fallbackKey: String.LocalizationValue) -> String {
+    guard let windowMinutes else { return String(localized: fallbackKey) }
     if windowMinutes >= 10080 {
-      return "Weekly window"
+      return String(localized: "progress.window.weekly")
     }
     if windowMinutes % 60 == 0 {
-      return "\(windowMinutes / 60)-hour window"
+      return localizedFormat("progress.window.hour_format", String(windowMinutes / 60))
     }
-    return "\(windowMinutes)-minute window"
+    return localizedFormat("progress.window.minute_format", String(windowMinutes))
   }
 
   @ViewBuilder
@@ -39,7 +39,7 @@ struct CodexProgressSectionView: View {
     let usedFraction = max(0, min(1, displayUsed / 100.0))
 
     VStack(alignment: .leading, spacing: 6) {
-      Text("\(title): \(Int(displayUsed.rounded()))% used")
+      Text(localizedFormat("progress.row.used_format", title, String(Int(displayUsed.rounded()))))
         .font(.system(size: 14, weight: .semibold, design: .rounded))
         .foregroundStyle(.primary)
 
@@ -62,11 +62,11 @@ struct CodexProgressSectionView: View {
   }
 
   private func resetText(_ date: Date?) -> String {
-    guard let date else { return "Reset --" }
+    guard let date else { return String(localized: "progress.reset.none") }
     if Calendar.current.isDateInToday(date) {
-      return "Reset at \(Self.resetTimeFormatter.string(from: date))"
+      return localizedFormat("progress.reset.at_format", Self.resetTimeFormatter.string(from: date))
     }
-    return "Reset on \(Self.resetDateFormatter.string(from: date))"
+    return localizedFormat("progress.reset.on_format", Self.resetDateFormatter.string(from: date))
   }
 
   private func progressColor(usedPercent: Double) -> Color {
@@ -92,4 +92,8 @@ struct CodexProgressSectionView: View {
     formatter.timeStyle = .none
     return formatter
   }()
+
+  private func localizedFormat(_ key: String.LocalizationValue, _ arguments: CVarArg...) -> String {
+    String(format: String(localized: key), locale: Locale.current, arguments: arguments)
+  }
 }

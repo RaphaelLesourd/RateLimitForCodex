@@ -19,7 +19,7 @@ struct AuthenticationSectionView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Text("Data Source")
+      Text(String(localized: "auth.data_source"))
         .font(.system(size: 14, weight: .bold, design: .rounded))
         .foregroundStyle(.primary)
 
@@ -33,20 +33,20 @@ struct AuthenticationSectionView: View {
       .labelsHidden()
 
       if viewModel.isExperimentalMode {
-        Text("Experimental mode reads local session files from ~/.codex/sessions. This path is not an official OpenAI API integration.")
+        Text(String(localized: "auth.experimental.notice"))
           .font(.caption)
           .foregroundStyle(.orange)
           .fixedSize(horizontal: false, vertical: true)
       } else {
-        Text("Official OpenAI API key")
+        Text(String(localized: "auth.official.label"))
           .font(.caption)
           .foregroundStyle(.secondary)
 
-        SecureField("OpenAI API key", text: apiKeyBinding)
+        SecureField(String(localized: "auth.api_key.placeholder"), text: apiKeyBinding)
           .textFieldStyle(.roundedBorder)
 
         if let apiKeysURL = URL(string: "https://platform.openai.com/api-keys") {
-          Link("Manage API keys", destination: apiKeysURL)
+          Link(String(localized: "auth.api_key.manage"), destination: apiKeysURL)
             .font(.caption)
         }
       }

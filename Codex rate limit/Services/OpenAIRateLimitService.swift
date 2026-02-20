@@ -109,13 +109,17 @@ enum RateLimitError: LocalizedError {
   var errorDescription: String? {
     switch self {
       case .invalidResponse:
-        return "Received an invalid response from OpenAI."
+        return String(localized: "service.openai.invalid_response")
       case let .httpError(statusCode, body):
         if body.isEmpty {
-          return "OpenAI request failed (\(statusCode))."
+          return localizedFormat("service.openai.request_failed_status_format", String(statusCode))
         }
         let trimmed = body.count > 220 ? String(body.prefix(220)) + "..." : body
-        return "OpenAI request failed (\(statusCode)): \(trimmed)"
+        return localizedFormat("service.openai.request_failed_body_format", String(statusCode), trimmed)
     }
+  }
+
+  private func localizedFormat(_ key: String.LocalizationValue, _ arguments: CVarArg...) -> String {
+    String(format: String(localized: key), locale: Locale.current, arguments: arguments)
   }
 }

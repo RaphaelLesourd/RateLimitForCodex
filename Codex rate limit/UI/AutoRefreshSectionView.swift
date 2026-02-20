@@ -6,7 +6,7 @@ struct AutoRefreshSectionView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 8) {
-        Text("Auto Refresh")
+        Text(String(localized: "auto_refresh.title"))
           .font(.system(size: 14, weight: .bold, design: .rounded))
           .foregroundStyle(.primary)
 
@@ -14,27 +14,33 @@ struct AutoRefreshSectionView: View {
 
         Picker("", selection: $viewModel.refreshIntervalSeconds) {
           ForEach(RateLimitViewModel.supportedRefreshIntervals, id: \.self) { seconds in
-            Text("\(seconds)s").tag(seconds)
+            Text(localizedFormat("auto_refresh.interval_seconds_format", String(seconds))).tag(seconds)
           }
         }
         .pickerStyle(.menu)
         .labelsHidden()
       }
 
-      Text("Last check \(viewModel.statusText)")
+      Text(localizedFormat("auto_refresh.last_check_format", viewModel.statusText))
         .font(.caption)
         .foregroundStyle(.secondary)
 
       if !viewModel.isExperimentalMode, let tokenCost = viewModel.lastRefreshTokenCost {
         let burnText = viewModel.estimatedHourlyTokenBurnPercent
-          .map { " • ~\($0.formatted(.number.precision(.fractionLength(2))))%/h \(viewModel.burnTrendSymbol)" } ?? ""
-        Text("Cost \(tokenCost)t\(burnText)")
+          .map {
+            localizedFormat(
+              "auto_refresh.burn_suffix_format",
+              $0.formatted(.number.precision(.fractionLength(2))),
+              viewModel.burnTrendSymbol
+            )
+          } ?? ""
+        Text(localizedFormat("auto_refresh.cost_format", String(tokenCost), burnText))
           .font(.caption2)
           .foregroundStyle(.secondary)
       }
 
       HStack(spacing: 8) {
-        Button("Reload now") {
+        Button(String(localized: "common.button.reload_now")) {
           viewModel.refresh()
         }
         .disabled(viewModel.isRefreshing)
@@ -47,6 +53,10 @@ struct AutoRefreshSectionView: View {
         Spacer()
       }
     }
+  }
+
+  private func localizedFormat(_ key: String.LocalizationValue, _ arguments: CVarArg...) -> String {
+    String(format: String(localized: key), locale: Locale.current, arguments: arguments)
   }
 
 }
