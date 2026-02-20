@@ -10,6 +10,12 @@ struct MenuBarLabelView: View {
       .interpolation(.none)
   }
 
+  private func usedPercent(limit: Int?, remaining: Int?) -> Double? {
+    guard let limit, let remaining, limit > 0 else { return nil }
+    let used = max(0, min(limit, limit - remaining))
+    return (Double(used) / Double(limit)) * 100.0
+  }
+
   private func displayedUsedPercent(fromUsedPercent usedPercent: Double?) -> Double {
     guard let usedPercent else { return 0 }
     return max(0, min(100, usedPercent))
@@ -42,8 +48,15 @@ struct MenuBarLabelView: View {
     let topRowBarY: CGFloat = 16
     let bottomRowBarY: CGFloat = 3
 
-    let primaryText = rowText(usedPercent: viewModel.snapshot?.codexPrimaryUsedPercent)
-    let secondaryText = rowText(usedPercent: viewModel.snapshot?.codexSecondaryUsedPercent)
+    let requestsUsedPercent = viewModel.isExperimentalMode
+      ? viewModel.snapshot?.sessionPrimaryUsedPercent
+      : usedPercent(limit: viewModel.snapshot?.requestsLimit, remaining: viewModel.snapshot?.requestsRemaining)
+    let tokensUsedPercent = viewModel.isExperimentalMode
+      ? viewModel.snapshot?.sessionSecondaryUsedPercent
+      : usedPercent(limit: viewModel.snapshot?.tokensLimit, remaining: viewModel.snapshot?.tokensRemaining)
+
+    let primaryText = rowText(usedPercent: requestsUsedPercent)
+    let secondaryText = rowText(usedPercent: tokensUsedPercent)
 
     let attributes: [NSAttributedString.Key: Any] = [
       .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .bold),
@@ -60,13 +73,13 @@ struct MenuBarLabelView: View {
 
     drawCapsuleBar(
       rect: NSRect(x: contentOriginX, y: topRowBarY, width: barWidth, height: barHeight),
-      fraction: displayedUsedFraction(fromUsedPercent: viewModel.snapshot?.codexPrimaryUsedPercent),
-      fillColor: navProgressColor(fromUsedPercent: viewModel.snapshot?.codexPrimaryUsedPercent)
+      fraction: displayedUsedFraction(fromUsedPercent: requestsUsedPercent),
+      fillColor: navProgressColor(fromUsedPercent: requestsUsedPercent)
     )
     drawCapsuleBar(
       rect: NSRect(x: contentOriginX, y: bottomRowBarY, width: barWidth, height: barHeight),
-      fraction: displayedUsedFraction(fromUsedPercent: viewModel.snapshot?.codexSecondaryUsedPercent),
-      fillColor: navProgressColor(fromUsedPercent: viewModel.snapshot?.codexSecondaryUsedPercent)
+      fraction: displayedUsedFraction(fromUsedPercent: tokensUsedPercent),
+      fillColor: navProgressColor(fromUsedPercent: tokensUsedPercent)
     )
 
     let primaryTextHeight = (primaryText as NSString).size(withAttributes: attributes).height

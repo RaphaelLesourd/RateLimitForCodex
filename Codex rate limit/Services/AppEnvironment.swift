@@ -9,40 +9,30 @@ protocol OpenAIRateLimitServiceProtocol {
   func fetchRateLimit(authToken: String, model: String) async throws -> RateLimitSnapshot
 }
 
-protocol CodexAuthServiceProtocol {
-  func loadSession() throws -> CodexAuthSession
-  func logout() throws
-}
-
-protocol CodexSessionRateLimitServiceProtocol {
-  func loadLatest(maxAge: TimeInterval?, signedOutAfter: Date?) throws -> CodexSessionRateLimitSnapshot
-  func hasRecentSession(maxAge: TimeInterval, signedOutAfter: Date?) throws -> Bool
+protocol LocalSessionRateLimitServiceProtocol {
+  func loadLatest(maxAge: TimeInterval?) throws -> SessionRateLimitSnapshot
 }
 
 struct AppEnvironment {
   let apiKeyStore: any APIKeyStore
   let openAIRateLimitService: any OpenAIRateLimitServiceProtocol
-  let codexAuthService: any CodexAuthServiceProtocol
-  let codexSessionRateLimitService: any CodexSessionRateLimitServiceProtocol
+  let localSessionRateLimitService: any LocalSessionRateLimitServiceProtocol
 
   init(
     apiKeyStore: any APIKeyStore,
     openAIRateLimitService: any OpenAIRateLimitServiceProtocol,
-    codexAuthService: any CodexAuthServiceProtocol,
-    codexSessionRateLimitService: any CodexSessionRateLimitServiceProtocol
+    localSessionRateLimitService: any LocalSessionRateLimitServiceProtocol
   ) {
     self.apiKeyStore = apiKeyStore
     self.openAIRateLimitService = openAIRateLimitService
-    self.codexAuthService = codexAuthService
-    self.codexSessionRateLimitService = codexSessionRateLimitService
+    self.localSessionRateLimitService = localSessionRateLimitService
   }
 
   static func live() -> AppEnvironment {
     AppEnvironment(
       apiKeyStore: KeychainAPIKeyStore(),
       openAIRateLimitService: OpenAIRateLimitService(),
-      codexAuthService: CodexAuthService(),
-      codexSessionRateLimitService: CodexSessionRateLimitService()
+      localSessionRateLimitService: CodexSessionRateLimitService()
     )
   }
 }

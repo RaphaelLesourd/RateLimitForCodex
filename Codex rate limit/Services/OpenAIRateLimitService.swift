@@ -32,12 +32,12 @@ struct OpenAIRateLimitService: OpenAIRateLimitServiceProtocol {
       tokensLimit: headerInt(httpResponse, name: "x-ratelimit-limit-tokens"),
       tokensRemaining: headerInt(httpResponse, name: "x-ratelimit-remaining-tokens"),
       tokensReset: headerString(httpResponse, name: "x-ratelimit-reset-tokens"),
-      codexPrimaryUsedPercent: nil,
-      codexPrimaryWindowMinutes: nil,
-      codexPrimaryResetsAt: nil,
-      codexSecondaryUsedPercent: nil,
-      codexSecondaryWindowMinutes: nil,
-      codexSecondaryResetsAt: nil,
+      sessionPrimaryUsedPercent: nil,
+      sessionPrimaryWindowMinutes: nil,
+      sessionPrimaryResetsAt: nil,
+      sessionSecondaryUsedPercent: nil,
+      sessionSecondaryWindowMinutes: nil,
+      sessionSecondaryResetsAt: nil,
       fetchedAt: Date()
     )
   }

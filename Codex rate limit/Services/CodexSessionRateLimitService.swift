@@ -1,6 +1,6 @@
 import Foundation
 
-struct CodexSessionRateLimitService: CodexSessionRateLimitServiceProtocol {
+struct CodexSessionRateLimitService: LocalSessionRateLimitServiceProtocol {
   enum Error: LocalizedError {
     case sessionsFolderNotFound
     case noRateLimitData
@@ -8,14 +8,14 @@ struct CodexSessionRateLimitService: CodexSessionRateLimitServiceProtocol {
     var errorDescription: String? {
       switch self {
         case .sessionsFolderNotFound:
-          return "Codex sessions folder not found."
+          return "No local Codex sessions folder was found."
         case .noRateLimitData:
-          return "No Codex rate-limit data found yet. Use Codex once, then refresh."
+          return "No local session rate-limit data found yet."
       }
     }
   }
 
-  func loadLatest(maxAge: TimeInterval? = nil, signedOutAfter: Date? = nil) throws -> CodexSessionRateLimitSnapshot {
+  func loadLatest(maxAge: TimeInterval? = nil) throws -> SessionRateLimitSnapshot {
     let sessionsPath = NSString(string: "~/.codex/sessions").expandingTildeInPath
     var isDirectory: ObjCBool = false
     guard FileManager.default.fileExists(atPath: sessionsPath, isDirectory: &isDirectory), isDirectory.boolValue else {
@@ -25,9 +25,6 @@ struct CodexSessionRateLimitService: CodexSessionRateLimitServiceProtocol {
     let files = try allSessionFiles(in: URL(fileURLWithPath: sessionsPath))
     let now = Date()
     for file in files {
-      if let signedOutAfter, file.date <= signedOutAfter {
-        break
-      }
       if let maxAge, file.date < now.addingTimeInterval(-maxAge) {
         break
       }
@@ -37,26 +34,6 @@ struct CodexSessionRateLimitService: CodexSessionRateLimitServiceProtocol {
     }
 
     throw Error.noRateLimitData
-  }
-
-  func hasRecentSession(maxAge: TimeInterval, signedOutAfter: Date? = nil) throws -> Bool {
-    let sessionsPath = NSString(string: "~/.codex/sessions").expandingTildeInPath
-    var isDirectory: ObjCBool = false
-    guard FileManager.default.fileExists(atPath: sessionsPath, isDirectory: &isDirectory), isDirectory.boolValue else {
-      return false
-    }
-
-    guard let newest = try allSessionFiles(in: URL(fileURLWithPath: sessionsPath)).first else {
-      return false
-    }
-
-    if let signedOutAfter, newest.date <= signedOutAfter {
-      return false
-    }
-    if newest.date < Date().addingTimeInterval(-maxAge) {
-      return false
-    }
-    return true
   }
 
   private func allSessionFiles(in root: URL) throws -> [(url: URL, date: Date)] {
@@ -79,7 +56,7 @@ struct CodexSessionRateLimitService: CodexSessionRateLimitServiceProtocol {
     return files.sorted { $0.date > $1.date }
   }
 
-  private func parseLatestRateLimit(in fileURL: URL) throws -> CodexSessionRateLimitSnapshot? {
+  private func parseLatestRateLimit(in fileURL: URL) throws -> SessionRateLimitSnapshot? {
     let content = try String(contentsOf: fileURL, encoding: .utf8)
     for line in content.split(whereSeparator: \.isNewline).reversed() {
       guard line.contains("\"token_count\""), line.contains("\"rate_limits\"") else { continue }
@@ -94,7 +71,7 @@ struct CodexSessionRateLimitService: CodexSessionRateLimitServiceProtocol {
       let primary = rateLimits["primary"] as? [String: Any]
       let secondary = rateLimits["secondary"] as? [String: Any]
 
-      return CodexSessionRateLimitSnapshot(
+      return SessionRateLimitSnapshot(
         primaryUsedPercent: primary?["used_percent"] as? Double,
         primaryWindowMinutes: primary?["window_minutes"] as? Int,
         primaryResetsAt: epochDate(primary?["resets_at"]),

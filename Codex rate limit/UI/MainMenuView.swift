@@ -2,13 +2,14 @@ import SwiftUI
 
 struct MainMenuView: View {
   @ObservedObject var viewModel: RateLimitViewModel
-  @State private var selectedAuthMode: RateLimitViewModel.AuthMode = .apiKey
   @State private var isShowingAbout = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       if let snapshot = viewModel.snapshot {
-        if viewModel.authMode == .codexLogin, snapshot.codexPrimaryUsedPercent != nil {
+        if viewModel.isExperimentalMode,
+           snapshot.sessionPrimaryUsedPercent != nil || snapshot.sessionSecondaryUsedPercent != nil
+        {
           CodexProgressSectionView(snapshot: snapshot)
         } else {
           MetricRowView(title: "Requests", value: "\(snapshot.requestsRemaining?.description ?? "--") / \(snapshot.requestsLimit?.description ?? "--")")
@@ -17,7 +18,7 @@ struct MainMenuView: View {
           MetricRowView(title: "Token reset", value: snapshot.tokensReset ?? "--")
         }
       } else {
-        Text("No rate limit data yet.")
+        Text(viewModel.isExperimentalMode ? "No local session rate-limit data yet." : "No API rate limit data yet.")
           .foregroundStyle(.secondary)
       }
 
@@ -30,7 +31,7 @@ struct MainMenuView: View {
 
       Divider()
 
-      AuthenticationSectionView(viewModel: viewModel, selectedAuthMode: $selectedAuthMode)
+      AuthenticationSectionView(viewModel: viewModel)
 
       Divider()
 
@@ -58,31 +59,12 @@ struct MainMenuView: View {
     .onDisappear {
       isShowingAbout = false
     }
-    .onAppear {
-      selectedAuthMode = viewModel.authMode
-    }
-    .onChange(of: viewModel.authMode) { _, newMode in
-      if selectedAuthMode != newMode {
-        selectedAuthMode = newMode
-      }
-    }
-    .onChange(of: selectedAuthMode) { _, newMode in
-      guard newMode != viewModel.authMode else { return }
-      Task { @MainActor in
-        switch newMode {
-          case .codexLogin:
-            viewModel.useCodexLogin()
-          case .apiKey:
-            viewModel.useAPIKeyLogin()
-        }
-      }
-    }
   }
 }
 
 private enum AppSupportInfo {
   // Replace with your real support inbox before store submission.
-  static let email = "support@ratelimitforcodex.app"
+  static let email = "support@ratelimitmonitor.app"
 }
 
 private struct AboutSupportView: View {
@@ -91,7 +73,7 @@ private struct AboutSupportView: View {
   private var appName: String {
     (Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
       ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String)
-      ?? "RateLimitForCodex"
+      ?? "Rate Limit Monitor"
   }
 
   private var version: String {
@@ -116,6 +98,10 @@ private struct AboutSupportView: View {
         .foregroundStyle(.secondary)
 
       Text("Created with Codex (agent-built).")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+
+      Text("Not affiliated with OpenAI.")
         .font(.caption)
         .foregroundStyle(.secondary)
 
