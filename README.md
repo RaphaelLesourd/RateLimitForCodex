@@ -13,6 +13,8 @@ A lightweight macOS menu bar app that checks rate-limit usage at a glance.
 
 ## Download
 
+<img width="128" height="128" alt="icon-iOS-Default-256x256@1x" src="https://github.com/user-attachments/assets/7cea829e-88a3-48ac-ab49-855556c3b63c" />
+
 [Download app here (macOS ZIP)](https://github.com/RaphaelLesourd/RateLimitForCodex/releases/latest/download/Rate%20Limit%20Monitor-macOS.zip)  
 If the direct asset URL changes, download from [Releases](https://github.com/RaphaelLesourd/RateLimitForCodex/releases).
 
@@ -64,14 +66,6 @@ This app is **100% built with Codex** and intentionally created with no manual c
 Purpose of this project:
 - Learn practical collaboration with coding agents.
 - Demonstrate iterative agent workflow from prompt to shipped app.
-
-## App Download
-
-<img width="128" height="128" alt="icon-iOS-Default-256x256@1x" src="https://github.com/user-attachments/assets/7cea829e-88a3-48ac-ab49-855556c3b63c" />
-
-
-[Download lastest version](https://github.com/user-attachments/files/25443787/Rate.Limit.Monitor.zip)
-
 
 ## Run Locally
 
