@@ -1,3 +1,4 @@
+
 # Rate Limit Monitor 📊
 
 ![Swift](https://img.shields.io/badge/Swift-5.0-orange.svg)
@@ -5,12 +6,10 @@
 ![Deployment](https://img.shields.io/badge/macOS-14.0%2B-0A84FF.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
+![Screenshot 2026-02-20 at 15 10 29](https://github.com/user-attachments/assets/ea38370c-cdf4-4155-abf5-c10ea682f772)
+
+
 A lightweight macOS menu bar app that checks rate-limit usage at a glance.
-
-<img width="128" height="128" alt="icon-iOS-Default-256x256@1x" src="https://github.com/user-attachments/assets/7cea829e-88a3-48ac-ab49-855556c3b63c" />
-
-
-[Download lastest version](https://github.com/user-attachments/files/25443787/Rate.Limit.Monitor.zip)
 
 ## Important Legal/Brand Notes
 
@@ -53,6 +52,14 @@ This app is **100% built with Codex** and intentionally created with no manual c
 Purpose of this project:
 - Learn practical collaboration with coding agents.
 - Demonstrate iterative agent workflow from prompt to shipped app.
+
+## App Download
+
+<img width="128" height="128" alt="icon-iOS-Default-256x256@1x" src="https://github.com/user-attachments/assets/7cea829e-88a3-48ac-ab49-855556c3b63c" />
+
+
+[Download lastest version](https://github.com/user-attachments/files/25443787/Rate.Limit.Monitor.zip)
+
 
 ## Run Locally
 
