@@ -4,14 +4,23 @@ import Foundation
 
 @MainActor
 final class RateLimitViewModel: ObservableObject {
-  enum AuthMode: String {
-    case codexLogin
-    case apiKey
+  enum DataCollectionMode: String {
+    case officialAPI
+    case experimentalLocalSession
+
+    var title: String {
+      switch self {
+        case .officialAPI:
+          return "Official API"
+        case .experimentalLocalSession:
+          return "Experimental Local"
+      }
+    }
   }
 
-  @Published var apiKey: String {
-    didSet { environment.apiKeyStore.save(apiKey: apiKey) }
-  }
+  @Published private(set) var dataCollectionMode: DataCollectionMode
+
+  @Published private(set) var apiKey: String
 
   @Published var model: String {
     didSet { UserDefaults.standard.set(model, forKey: Self.modelDefaultsKey) }
@@ -28,18 +37,18 @@ final class RateLimitViewModel: ObservableObject {
   @Published private(set) var isRefreshing = false
   @Published private(set) var statusText = "Not refreshed yet"
   @Published private(set) var errorText: String?
-  @Published private(set) var authMode: AuthMode = .apiKey
-  @Published private(set) var codexAccountEmail: String?
-  @Published private(set) var codexLoginAvailable = false
-  @Published private(set) var codexSessionOnly = false
+
+  var isExperimentalMode: Bool {
+    dataCollectionMode == .experimentalLocalSession
+  }
 
   private let environment: AppEnvironment
   private var timer: Timer?
 
   private static let modelDefaultsKey = "openai_model"
   private static let refreshIntervalDefaultsKey = "refresh_interval_seconds"
-  private static let authModeDefaultsKey = "auth_mode"
-  private static let codexSessionRecencySeconds: TimeInterval = 12 * 60 * 60
+  private static let dataCollectionModeDefaultsKey = "data_collection_mode"
+  private static let localSessionRecencySeconds: TimeInterval = 12 * 60 * 60
 
   static let supportedRefreshIntervals = [60, 120, 300]
 
@@ -51,23 +60,12 @@ final class RateLimitViewModel: ObservableObject {
     let envKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
 
     apiKey = savedKey.isEmpty ? envKey : savedKey
-    model = defaults.string(forKey: Self.modelDefaultsKey) ?? "gpt-5-codex"
+    model = defaults.string(forKey: Self.modelDefaultsKey) ?? "gpt-5"
 
     let savedInterval = defaults.integer(forKey: Self.refreshIntervalDefaultsKey)
     refreshIntervalSeconds = Self.supportedRefreshIntervals.contains(savedInterval) ? savedInterval : 60
 
-    reloadCodexSession()
-
-    let savedAuthMode = AuthMode(rawValue: defaults.string(forKey: Self.authModeDefaultsKey) ?? "")
-    if let savedAuthMode {
-      authMode = savedAuthMode
-    } else {
-      authMode = codexLoginAvailable ? .codexLogin : .apiKey
-    }
-
-    if authMode == .codexLogin {
-      refreshCodexSnapshotLocally(force: false)
-    }
+    dataCollectionMode = DataCollectionMode(rawValue: defaults.string(forKey: Self.dataCollectionModeDefaultsKey) ?? "") ?? .officialAPI
 
     startTimer()
     Task { await refreshIfConfigured() }
@@ -81,42 +79,30 @@ final class RateLimitViewModel: ObservableObject {
     Task { await refreshIfConfigured(force: true) }
   }
 
-  func useCodexLogin() {
-    authMode = .codexLogin
-    UserDefaults.standard.set(authMode.rawValue, forKey: Self.authModeDefaultsKey)
-    statusText = "Waiting for Codex session"
-    errorText = nil
-    refresh()
+  func setDataCollectionMode(_ mode: DataCollectionMode) {
+    guard dataCollectionMode != mode else { return }
+    dataCollectionMode = mode
+    UserDefaults.standard.set(mode.rawValue, forKey: Self.dataCollectionModeDefaultsKey)
+
+    // Defer follow-up publishes to avoid emitting multiple changes during picker view updates.
+    DispatchQueue.main.async { [weak self] in
+      self?.errorText = nil
+      self?.refresh()
+    }
   }
 
-  func useAPIKeyLogin() {
-    authMode = .apiKey
-    UserDefaults.standard.set(authMode.rawValue, forKey: Self.authModeDefaultsKey)
-    errorText = nil
-    refresh()
+  func setAPIKey(_ value: String) {
+    guard apiKey != value else { return }
+    apiKey = value
+
+    // Defer keychain write outside the immediate view update cycle.
+    DispatchQueue.main.async { [weak self] in
+      self?.environment.apiKeyStore.save(apiKey: value)
+    }
   }
 
   func quit() {
     NSApplication.shared.terminate(nil)
-  }
-
-  func reloadCodexSession() {
-    var hasAuthToken = false
-    do {
-      let codexAuth = try environment.codexAuthService.loadSession()
-      codexAccountEmail = codexAuth.email
-      hasAuthToken = true
-    } catch {
-      codexAccountEmail = nil
-    }
-
-    let hasRecentSession = (try? environment.codexSessionRateLimitService.hasRecentSession(
-      maxAge: Self.codexSessionRecencySeconds,
-      signedOutAfter: nil
-    )) ?? false
-
-    codexSessionOnly = hasRecentSession && !hasAuthToken
-    codexLoginAvailable = hasAuthToken || hasRecentSession
   }
 
   private func startTimer() {
@@ -131,29 +117,27 @@ final class RateLimitViewModel: ObservableObject {
 
   private func refreshIfConfigured(force: Bool = false) async {
     if isRefreshing {
-      if force, authMode == .codexLogin {
-        reloadCodexSession()
-        refreshCodexSnapshotLocally(force: true)
-      }
       return
     }
 
     isRefreshing = true
     defer { isRefreshing = false }
 
-    reloadCodexSession()
-
-    if authMode == .codexLogin {
-      refreshCodexSnapshotLocally(force: force)
-      return
+    switch dataCollectionMode {
+      case .officialAPI:
+        await refreshFromOfficialAPI(force: force)
+      case .experimentalLocalSession:
+        refreshFromLocalSession(force: force)
     }
+  }
 
+  private func refreshFromOfficialAPI(force: Bool) async {
     let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
     let authToken = resolveAuthToken()
 
     guard let authToken else {
       if force {
-        statusText = authMode == .codexLogin ? "Waiting for Codex login" : "Waiting for API key"
+        statusText = "Waiting for API key"
       }
       return
     }
@@ -174,18 +158,42 @@ final class RateLimitViewModel: ObservableObject {
     }
   }
 
-  private func resolveAuthToken() -> String? {
-    switch authMode {
-      case .apiKey:
-        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else {
-          errorText = "Add an OpenAI API key or switch to Codex login."
-          return nil
-        }
-        return trimmedKey
-      case .codexLogin:
-        return nil
+  private func refreshFromLocalSession(force: Bool) {
+    do {
+      let localSnapshot = try environment.localSessionRateLimitService.loadLatest(maxAge: Self.localSessionRecencySeconds)
+      snapshot = RateLimitSnapshot(
+        requestsLimit: nil,
+        requestsRemaining: nil,
+        requestsReset: nil,
+        tokensLimit: nil,
+        tokensRemaining: nil,
+        tokensReset: nil,
+        sessionPrimaryUsedPercent: localSnapshot.primaryUsedPercent,
+        sessionPrimaryWindowMinutes: localSnapshot.primaryWindowMinutes,
+        sessionPrimaryResetsAt: localSnapshot.primaryResetsAt,
+        sessionSecondaryUsedPercent: localSnapshot.secondaryUsedPercent,
+        sessionSecondaryWindowMinutes: localSnapshot.secondaryWindowMinutes,
+        sessionSecondaryResetsAt: localSnapshot.secondaryResetsAt,
+        fetchedAt: Date()
+      )
+      errorText = nil
+      statusText = "Local session checked \(Self.timeFormatter.string(from: Date()))"
+    } catch {
+      snapshot = nil
+      errorText = error.localizedDescription
+      if force {
+        statusText = "Local session attempt \(Self.timeFormatter.string(from: Date()))"
+      }
     }
+  }
+
+  private func resolveAuthToken() -> String? {
+    let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedKey.isEmpty else {
+      errorText = "Add an OpenAI API key."
+      return nil
+    }
+    return trimmedKey
   }
 
   private func mappedErrorText(_ error: Error) -> String {
@@ -196,43 +204,6 @@ final class RateLimitViewModel: ObservableObject {
       return "Incorrect API key. Paste a valid OpenAI API key."
     }
     return error.localizedDescription
-  }
-
-  private func refreshCodexSnapshotLocally(force: Bool) {
-    do {
-      let codexSnapshot = try environment.codexSessionRateLimitService.loadLatest(
-        maxAge: Self.codexSessionRecencySeconds,
-        signedOutAfter: nil
-      )
-      snapshot = RateLimitSnapshot(
-        requestsLimit: nil,
-        requestsRemaining: nil,
-        requestsReset: nil,
-        tokensLimit: nil,
-        tokensRemaining: nil,
-        tokensReset: nil,
-        codexPrimaryUsedPercent: codexSnapshot.primaryUsedPercent,
-        codexPrimaryWindowMinutes: codexSnapshot.primaryWindowMinutes,
-        codexPrimaryResetsAt: codexSnapshot.primaryResetsAt,
-        codexSecondaryUsedPercent: codexSnapshot.secondaryUsedPercent,
-        codexSecondaryWindowMinutes: codexSnapshot.secondaryWindowMinutes,
-        codexSecondaryResetsAt: codexSnapshot.secondaryResetsAt,
-        fetchedAt: Date()
-      )
-      errorText = nil
-      statusText = "Last checked \(Self.timeFormatter.string(from: Date()))"
-    } catch {
-      snapshot = nil
-      if case CodexSessionRateLimitService.Error.noRateLimitData = error {
-        errorText = nil
-        statusText = "Waiting for Codex session"
-      } else {
-        errorText = error.localizedDescription
-        if force {
-          statusText = "Last attempt \(Self.timeFormatter.string(from: Date()))"
-        }
-      }
-    }
   }
 
   private static let timeFormatter: DateFormatter = {

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct CodexRateLimitApp: App {
+struct RateLimitMonitorApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
   @StateObject private var viewModel: RateLimitViewModel
 
@@ -20,4 +20,3 @@ struct CodexRateLimitApp: App {
     .menuBarExtraStyle(.window)
   }
 }
-

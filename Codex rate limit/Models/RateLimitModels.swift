@@ -7,24 +7,20 @@ struct RateLimitSnapshot {
   let tokensLimit: Int?
   let tokensRemaining: Int?
   let tokensReset: String?
-  let codexPrimaryUsedPercent: Double?
-  let codexPrimaryWindowMinutes: Int?
-  let codexPrimaryResetsAt: Date?
-  let codexSecondaryUsedPercent: Double?
-  let codexSecondaryWindowMinutes: Int?
-  let codexSecondaryResetsAt: Date?
+  let sessionPrimaryUsedPercent: Double?
+  let sessionPrimaryWindowMinutes: Int?
+  let sessionPrimaryResetsAt: Date?
+  let sessionSecondaryUsedPercent: Double?
+  let sessionSecondaryWindowMinutes: Int?
+  let sessionSecondaryResetsAt: Date?
   let fetchedAt: Date
 }
 
-struct CodexSessionRateLimitSnapshot {
+struct SessionRateLimitSnapshot {
   let primaryUsedPercent: Double?
   let primaryWindowMinutes: Int?
   let primaryResetsAt: Date?
   let secondaryUsedPercent: Double?
   let secondaryWindowMinutes: Int?
   let secondaryResetsAt: Date?
-}
-
-struct CodexAuthSession {
-  let email: String?
 }
