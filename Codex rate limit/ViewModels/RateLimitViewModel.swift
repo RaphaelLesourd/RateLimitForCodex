@@ -11,9 +11,9 @@ final class RateLimitViewModel: ObservableObject {
     var title: String {
       switch self {
         case .officialAPI:
-          return "Official API"
+          return "API Key"
         case .experimentalLocalSession:
-          return "Experimental Local"
+          return "Codex Session"
       }
     }
   }
@@ -29,6 +29,7 @@ final class RateLimitViewModel: ObservableObject {
   @Published var refreshIntervalSeconds: Int {
     didSet {
       UserDefaults.standard.set(refreshIntervalSeconds, forKey: Self.refreshIntervalDefaultsKey)
+      nextAutomaticRefreshAt = .distantPast
       startTimer()
     }
   }
@@ -37,18 +38,40 @@ final class RateLimitViewModel: ObservableObject {
   @Published private(set) var isRefreshing = false
   @Published private(set) var statusText = "Not refreshed yet"
   @Published private(set) var errorText: String?
+  @Published private(set) var burnTrendSymbol = "→"
 
   var isExperimentalMode: Bool {
     dataCollectionMode == .experimentalLocalSession
   }
 
+  var lastRefreshTokenCost: Int? {
+    snapshot?.requestTokensUsed
+  }
+
+  var estimatedHourlyTokenBurnPercent: Double? {
+    guard dataCollectionMode == .officialAPI,
+          let tokensUsed = snapshot?.requestTokensUsed, tokensUsed > 0,
+          let tokenLimit = snapshot?.tokensLimit, tokenLimit > 0
+    else {
+      return nil
+    }
+
+    let refreshesPerHour = 3600.0 / Double(refreshIntervalSeconds)
+    let hourlyTokenUse = Double(tokensUsed) * refreshesPerHour
+    return (hourlyTokenUse / Double(tokenLimit)) * 100.0
+  }
+
   private let environment: AppEnvironment
   private var timer: Timer?
+  private var nextAutomaticRefreshAt: Date = .distantPast
+  private var consecutiveAutomaticFailures = 0
+  private var previousEstimatedHourlyBurnPercent: Double?
 
   private static let modelDefaultsKey = "openai_model"
   private static let refreshIntervalDefaultsKey = "refresh_interval_seconds"
   private static let dataCollectionModeDefaultsKey = "data_collection_mode"
   private static let localSessionRecencySeconds: TimeInterval = 12 * 60 * 60
+  private static let maximumBackoffSeconds = 15 * 60
 
   static let supportedRefreshIntervals = [60, 120, 300]
 
@@ -81,23 +104,15 @@ final class RateLimitViewModel: ObservableObject {
 
   func setDataCollectionMode(_ mode: DataCollectionMode) {
     guard dataCollectionMode != mode else { return }
-    dataCollectionMode = mode
-    UserDefaults.standard.set(mode.rawValue, forKey: Self.dataCollectionModeDefaultsKey)
-
-    // Defer follow-up publishes to avoid emitting multiple changes during picker view updates.
     DispatchQueue.main.async { [weak self] in
-      self?.errorText = nil
-      self?.refresh()
+      self?.applyDataCollectionMode(mode)
     }
   }
 
   func setAPIKey(_ value: String) {
     guard apiKey != value else { return }
-    apiKey = value
-
-    // Defer keychain write outside the immediate view update cycle.
     DispatchQueue.main.async { [weak self] in
-      self?.environment.apiKeyStore.save(apiKey: value)
+      self?.applyAPIKey(value)
     }
   }
 
@@ -109,14 +124,36 @@ final class RateLimitViewModel: ObservableObject {
     timer?.invalidate()
     timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(refreshIntervalSeconds), repeats: true) { [weak self] _ in
       Task { @MainActor in
-        await self?.refreshIfConfigured(force: true)
+        await self?.refreshIfConfigured(force: false)
       }
     }
     timer?.tolerance = 3
   }
 
+  private func applyDataCollectionMode(_ mode: DataCollectionMode) {
+    guard dataCollectionMode != mode else { return }
+    dataCollectionMode = mode
+    UserDefaults.standard.set(mode.rawValue, forKey: Self.dataCollectionModeDefaultsKey)
+    errorText = nil
+    previousEstimatedHourlyBurnPercent = nil
+    burnTrendSymbol = "→"
+    nextAutomaticRefreshAt = .distantPast
+    consecutiveAutomaticFailures = 0
+    refresh()
+  }
+
+  private func applyAPIKey(_ value: String) {
+    guard apiKey != value else { return }
+    apiKey = value
+    environment.apiKeyStore.save(apiKey: value)
+  }
+
   private func refreshIfConfigured(force: Bool = false) async {
     if isRefreshing {
+      return
+    }
+
+    if !force, Date() < nextAutomaticRefreshAt {
       return
     }
 
@@ -152,9 +189,13 @@ final class RateLimitViewModel: ObservableObject {
       snapshot = newSnapshot
       errorText = nil
       statusText = "Last checked \(Self.timeFormatter.string(from: newSnapshot.fetchedAt))"
+      updateBurnTrend(with: newSnapshot)
+      scheduleNextAutomaticRefreshAfterSuccess(usagePercent: highestOfficialUsagePercent(from: newSnapshot))
     } catch {
+      logError("official_api_refresh_failed", error: error)
       errorText = mappedErrorText(error)
       statusText = "Last attempt \(Self.timeFormatter.string(from: Date()))"
+      scheduleNextAutomaticRefreshAfterFailure()
     }
   }
 
@@ -168,6 +209,7 @@ final class RateLimitViewModel: ObservableObject {
         tokensLimit: nil,
         tokensRemaining: nil,
         tokensReset: nil,
+        requestTokensUsed: nil,
         sessionPrimaryUsedPercent: localSnapshot.primaryUsedPercent,
         sessionPrimaryWindowMinutes: localSnapshot.primaryWindowMinutes,
         sessionPrimaryResetsAt: localSnapshot.primaryResetsAt,
@@ -178,12 +220,17 @@ final class RateLimitViewModel: ObservableObject {
       )
       errorText = nil
       statusText = "Local session checked \(Self.timeFormatter.string(from: Date()))"
+      previousEstimatedHourlyBurnPercent = nil
+      burnTrendSymbol = "→"
+      scheduleNextAutomaticRefreshAfterSuccess(usagePercent: localSnapshot.primaryUsedPercent)
     } catch {
+      logError("experimental_local_refresh_failed", error: error)
       snapshot = nil
       errorText = error.localizedDescription
       if force {
         statusText = "Local session attempt \(Self.timeFormatter.string(from: Date()))"
       }
+      scheduleNextAutomaticRefreshAfterFailure()
     }
   }
 
@@ -206,9 +253,90 @@ final class RateLimitViewModel: ObservableObject {
     return error.localizedDescription
   }
 
+  private func scheduleNextAutomaticRefreshAfterSuccess(usagePercent: Double?) {
+    consecutiveAutomaticFailures = 0
+
+    let nextInterval: Int
+    if let usagePercent {
+      if usagePercent >= 70 {
+        nextInterval = refreshIntervalSeconds
+      } else if usagePercent >= 40 {
+        nextInterval = max(refreshIntervalSeconds, 120)
+      } else {
+        nextInterval = max(refreshIntervalSeconds, 300)
+      }
+    } else {
+      nextInterval = max(refreshIntervalSeconds, 120)
+    }
+
+    nextAutomaticRefreshAt = Date().addingTimeInterval(TimeInterval(nextInterval))
+  }
+
+  private func scheduleNextAutomaticRefreshAfterFailure() {
+    consecutiveAutomaticFailures = min(consecutiveAutomaticFailures + 1, 4)
+    let multiplier = Int(pow(2.0, Double(consecutiveAutomaticFailures)))
+    let backoff = min(refreshIntervalSeconds * multiplier, Self.maximumBackoffSeconds)
+    nextAutomaticRefreshAt = Date().addingTimeInterval(TimeInterval(backoff))
+  }
+
+  private func highestOfficialUsagePercent(from snapshot: RateLimitSnapshot) -> Double? {
+    let requestsUsage = usedPercent(limit: snapshot.requestsLimit, remaining: snapshot.requestsRemaining)
+    let tokensUsage = usedPercent(limit: snapshot.tokensLimit, remaining: snapshot.tokensRemaining)
+    if let requestsUsage, let tokensUsage {
+      return max(requestsUsage, tokensUsage)
+    }
+    return requestsUsage ?? tokensUsage
+  }
+
+  private func usedPercent(limit: Int?, remaining: Int?) -> Double? {
+    guard let limit, let remaining, limit > 0 else { return nil }
+    let used = max(0, min(limit, limit - remaining))
+    return (Double(used) / Double(limit)) * 100.0
+  }
+
+  private func updateBurnTrend(with snapshot: RateLimitSnapshot) {
+    guard let currentBurn = estimatedHourlyTokenBurnPercent(snapshot: snapshot) else {
+      previousEstimatedHourlyBurnPercent = nil
+      burnTrendSymbol = "→"
+      return
+    }
+
+    if let previousBurn = previousEstimatedHourlyBurnPercent {
+      if currentBurn > previousBurn + 0.05 {
+        burnTrendSymbol = "↗︎"
+      } else if currentBurn < previousBurn - 0.05 {
+        burnTrendSymbol = "↘︎"
+      } else {
+        burnTrendSymbol = "→"
+      }
+    } else {
+      burnTrendSymbol = "→"
+    }
+
+    previousEstimatedHourlyBurnPercent = currentBurn
+  }
+
+  private func estimatedHourlyTokenBurnPercent(snapshot: RateLimitSnapshot) -> Double? {
+    guard dataCollectionMode == .officialAPI,
+          let tokensUsed = snapshot.requestTokensUsed, tokensUsed > 0,
+          let tokenLimit = snapshot.tokensLimit, tokenLimit > 0
+    else {
+      return nil
+    }
+
+    let refreshesPerHour = 3600.0 / Double(refreshIntervalSeconds)
+    let hourlyTokenUse = Double(tokensUsed) * refreshesPerHour
+    return (hourlyTokenUse / Double(tokenLimit)) * 100.0
+  }
+
   private static let timeFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.timeStyle = .medium
     return formatter
   }()
+
+  private func logError(_ event: String, error: Error) {
+    print("[RateLimitMonitor] \(event): \(error.localizedDescription)")
+  }
+
 }

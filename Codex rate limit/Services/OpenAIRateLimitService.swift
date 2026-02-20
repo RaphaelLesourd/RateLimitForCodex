@@ -1,6 +1,8 @@
 import Foundation
 
 struct OpenAIRateLimitService: OpenAIRateLimitServiceProtocol {
+  private static let minResponseTokens = 16
+
   func fetchRateLimit(authToken: String, model: String) async throws -> RateLimitSnapshot {
     var request = URLRequest(url: URL(string: "https://api.openai.com/v1/responses")!)
     request.httpMethod = "POST"
@@ -11,7 +13,7 @@ struct OpenAIRateLimitService: OpenAIRateLimitServiceProtocol {
     let body: [String: Any] = [
       "model": model,
       "input": "ping",
-      "max_output_tokens": 1,
+      "max_output_tokens": Self.minResponseTokens,
     ]
     request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -25,6 +27,8 @@ struct OpenAIRateLimitService: OpenAIRateLimitServiceProtocol {
       throw RateLimitError.httpError(statusCode: httpResponse.statusCode, body: responseBody)
     }
 
+    let requestTokensUsed = responseUsageTotalTokens(from: data)
+
     return RateLimitSnapshot(
       requestsLimit: headerInt(httpResponse, name: "x-ratelimit-limit-requests"),
       requestsRemaining: headerInt(httpResponse, name: "x-ratelimit-remaining-requests"),
@@ -32,6 +36,7 @@ struct OpenAIRateLimitService: OpenAIRateLimitServiceProtocol {
       tokensLimit: headerInt(httpResponse, name: "x-ratelimit-limit-tokens"),
       tokensRemaining: headerInt(httpResponse, name: "x-ratelimit-remaining-tokens"),
       tokensReset: headerString(httpResponse, name: "x-ratelimit-reset-tokens"),
+      requestTokensUsed: requestTokensUsed,
       sessionPrimaryUsedPercent: nil,
       sessionPrimaryWindowMinutes: nil,
       sessionPrimaryResetsAt: nil,
@@ -55,6 +60,45 @@ struct OpenAIRateLimitService: OpenAIRateLimitServiceProtocol {
   private func headerInt(_ response: HTTPURLResponse, name: String) -> Int? {
     guard let headerValue = headerString(response, name: name) else { return nil }
     return Int(headerValue)
+  }
+
+  private func responseUsageTotalTokens(from data: Data) -> Int? {
+    guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let usage = root["usage"] as? [String: Any]
+    else {
+      return nil
+    }
+
+    if let total = intValue(for: usage["total_tokens"]) {
+      return total
+    }
+
+    // Fallbacks for payload variants across model families.
+    if let input = intValue(for: usage["input_tokens"]),
+       let output = intValue(for: usage["output_tokens"])
+    {
+      return input + output
+    }
+
+    if let prompt = intValue(for: usage["prompt_tokens"]),
+       let completion = intValue(for: usage["completion_tokens"])
+    {
+      return prompt + completion
+    }
+    return nil
+  }
+
+  private func intValue(for raw: Any?) -> Int? {
+    if let intValue = raw as? Int {
+      return intValue
+    }
+    if let doubleValue = raw as? Double {
+      return Int(doubleValue)
+    }
+    if let stringValue = raw as? String {
+      return Int(stringValue)
+    }
+    return nil
   }
 }
 
