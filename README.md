@@ -20,7 +20,10 @@ If the direct asset URL changes, download from [Releases](https://github.com/Rap
 
 The app runs immediately after download, but data modes require setup:
 - API Key mode: add your own OpenAI API key (if you have one)
+
 OR
+
+
 - Codex Session mode: works if you have used Codex on this machine and local session files exist at `~/.codex/sessions` (for example after running Codex in terminal/app).
 
 Gatekeeper note:
