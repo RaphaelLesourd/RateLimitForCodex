@@ -7,6 +7,11 @@
 
 A lightweight macOS menu bar app that checks rate-limit usage at a glance.
 
+<img width="128" height="128" alt="icon-iOS-Default-256x256@1x" src="https://github.com/user-attachments/assets/7cea829e-88a3-48ac-ab49-855556c3b63c" />
+
+
+[Download lastest version](https://github.com/user-attachments/files/25443787/Rate.Limit.Monitor.zip)
+
 ## Important Legal/Brand Notes
 
 - This app is **not affiliated with OpenAI**.
