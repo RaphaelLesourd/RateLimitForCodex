@@ -6,7 +6,7 @@
 ![Deployment](https://img.shields.io/badge/macOS-14.0%2B-0A84FF.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-![Screenshot 2026-02-20 at 15 10 29](https://github.com/user-attachments/assets/ea38370c-cdf4-4155-abf5-c10ea682f772)
+![Screenshot 2026-02-20 at 16 48 20](https://github.com/user-attachments/assets/c07db4ce-3718-4042-a7d6-7f17e4ccca20)
 
 
 A lightweight macOS menu bar app that checks rate-limit usage at a glance.
