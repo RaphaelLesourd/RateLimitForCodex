@@ -39,6 +39,23 @@ struct MainMenuView: View {
 
       Divider()
 
+      Toggle(
+        "Open at login",
+        isOn: Binding(
+          get: { viewModel.launchAtLoginEnabled },
+          set: { viewModel.setLaunchAtLoginEnabled($0) }
+        )
+      )
+
+      if let launchAtLoginErrorText = viewModel.launchAtLoginErrorText {
+        Text(launchAtLoginErrorText)
+          .font(.caption)
+          .foregroundStyle(.red)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+
+      Divider()
+
       HStack(spacing: 12) {
         Button("About") {
           isShowingAbout = true
