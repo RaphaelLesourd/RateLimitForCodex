@@ -16,6 +16,13 @@ A lightweight macOS menu bar app that checks rate-limit usage at a glance.
 [Download app here (macOS ZIP)](https://github.com/RaphaelLesourd/RateLimitForCodex/releases/latest/download/Rate%20Limit%20Monitor-macOS.zip)  
 If the direct asset URL changes, download from [Releases](https://github.com/RaphaelLesourd/RateLimitForCodex/releases).
 
+The app runs immediately after download, but data modes require setup:
+- API Key mode: add your own OpenAI API key.
+- Codex Session mode: works if you have used Codex on this machine and local session files exist at `~/.codex/sessions` (for example after running Codex in terminal/app).
+
+Gatekeeper note:
+- If macOS blocks the app on first launch, open **System Settings > Privacy & Security**, then allow/open it once from there.
+
 ## Important Legal/Brand Notes
 
 - This app is **not affiliated with OpenAI**.
