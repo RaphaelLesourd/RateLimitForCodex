@@ -2,7 +2,7 @@
 
 ![Swift](https://img.shields.io/badge/Swift-5.0-orange.svg)
 ![Platform](https://img.shields.io/badge/Platform-macOS%20only-blue.svg)
-![Deployment](https://img.shields.io/badge/macOS-26.1%2B-0A84FF.svg)
+![Deployment](https://img.shields.io/badge/macOS-14.0%2B-0A84FF.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 A lightweight macOS menu bar app to monitor OpenAI/Codex rate limits quickly, without opening a full dashboard.
@@ -117,7 +117,7 @@ flowchart LR
 ## Important Notes ⚠️
 
 - This app is **macOS-only** (`SUPPORTED_PLATFORMS = macosx`).
-- Current project target is `MACOSX_DEPLOYMENT_TARGET = 26.1` in project settings.
+- Current project target is `MACOSX_DEPLOYMENT_TARGET = 14.0` in project settings.
 - "Codex mode" depends on local Codex files existing and being recent.
 - No true account logout flow is implemented (by design).
 
