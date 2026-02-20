@@ -12,13 +12,29 @@ struct MainMenuView: View {
         {
           CodexProgressSectionView(snapshot: snapshot)
         } else {
-          MetricRowView(title: "Requests", value: "\(snapshot.requestsRemaining?.description ?? "--") / \(snapshot.requestsLimit?.description ?? "--")")
-          MetricRowView(title: "Request reset", value: snapshot.requestsReset ?? "--")
-          MetricRowView(title: "Tokens", value: "\(snapshot.tokensRemaining?.description ?? "--") / \(snapshot.tokensLimit?.description ?? "--")")
-          MetricRowView(title: "Token reset", value: snapshot.tokensReset ?? "--")
+          MetricRowView(
+            title: String(localized: "main_menu.metric.requests"),
+            value: "\(valueOrPlaceholder(snapshot.requestsRemaining?.description)) / \(valueOrPlaceholder(snapshot.requestsLimit?.description))"
+          )
+          MetricRowView(
+            title: String(localized: "main_menu.metric.request_reset"),
+            value: valueOrPlaceholder(snapshot.requestsReset)
+          )
+          MetricRowView(
+            title: String(localized: "main_menu.metric.tokens"),
+            value: "\(valueOrPlaceholder(snapshot.tokensRemaining?.description)) / \(valueOrPlaceholder(snapshot.tokensLimit?.description))"
+          )
+          MetricRowView(
+            title: String(localized: "main_menu.metric.token_reset"),
+            value: valueOrPlaceholder(snapshot.tokensReset)
+          )
         }
       } else {
-        Text(viewModel.isExperimentalMode ? "No local session rate-limit data yet." : "No API rate limit data yet.")
+        Text(
+          viewModel.isExperimentalMode
+            ? String(localized: "main_menu.no_data.local_session")
+            : String(localized: "main_menu.no_data.api")
+        )
           .foregroundStyle(.secondary)
       }
 
@@ -40,7 +56,7 @@ struct MainMenuView: View {
       Divider()
 
       Toggle(
-        "Open at login",
+        String(localized: "main_menu.open_at_login"),
         isOn: Binding(
           get: { viewModel.launchAtLoginEnabled },
           set: { viewModel.setLaunchAtLoginEnabled($0) }
@@ -57,13 +73,13 @@ struct MainMenuView: View {
       Divider()
 
       HStack(spacing: 12) {
-        Button("About") {
+        Button(String(localized: "common.button.about")) {
           isShowingAbout = true
         }
 
         Spacer()
 
-        Button("Quit") {
+        Button(String(localized: "common.button.quit")) {
           viewModel.quit()
         }
       }
@@ -89,7 +105,7 @@ private struct AboutSupportView: View {
   private var appName: String {
     (Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
       ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String)
-      ?? "Rate Limit Monitor"
+      ?? String(localized: "main_menu.about.app_name_fallback")
   }
 
   private var version: String {
@@ -104,10 +120,10 @@ private struct AboutSupportView: View {
     VStack(alignment: .leading, spacing: 8) {
       Text(appName)
         .font(.title3.weight(.semibold))
-      Text("⚠️ Not affiliated with OpenAI.")
+      Text(String(localized: "main_menu.about.disclaimer"))
       Group {
-        Text("Copyright (c) 2026 Raph - Version \(version) (\(build))")
-        Text("Created with Codex.")
+        Text(localizedFormat("main_menu.about.copyright_format", version, build))
+        Text(String(localized: "main_menu.about.created_with_codex"))
 
       }
       .font(.caption)
@@ -115,7 +131,7 @@ private struct AboutSupportView: View {
       Divider()
 
       VStack(alignment: .leading, spacing: 4) {
-        Text("Support")
+        Text(String(localized: "main_menu.about.support"))
           .font(.headline)
 
         if let supportURL = URL(string: "mailto:\(AppSupportInfo.email)") {
@@ -129,7 +145,7 @@ private struct AboutSupportView: View {
 
       HStack {
         Spacer()
-        Button("Done") {
+        Button(String(localized: "common.button.done")) {
           isPresented = false
         }
         .keyboardShortcut(.defaultAction)
@@ -138,4 +154,12 @@ private struct AboutSupportView: View {
     .padding(16)
     .frame(width: 360)
   }
+
+  private func localizedFormat(_ key: String.LocalizationValue, _ arguments: CVarArg...) -> String {
+    String(format: String(localized: key), locale: Locale.current, arguments: arguments)
+  }
+}
+
+private func valueOrPlaceholder(_ value: String?) -> String {
+  value ?? String(localized: "common.placeholder.unavailable")
 }

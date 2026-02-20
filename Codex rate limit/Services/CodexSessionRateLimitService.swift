@@ -8,9 +8,9 @@ struct CodexSessionRateLimitService: LocalSessionRateLimitServiceProtocol {
     var errorDescription: String? {
       switch self {
         case .sessionsFolderNotFound:
-          return "No local Codex sessions folder was found."
+          return String(localized: "service.codex_sessions.folder_not_found")
         case .noRateLimitData:
-          return "No local session rate-limit data found yet."
+          return String(localized: "service.codex_sessions.no_data")
       }
     }
   }

@@ -11,9 +11,9 @@ final class RateLimitViewModel: ObservableObject {
     var title: String {
       switch self {
         case .officialAPI:
-          return "API Key"
+          return String(localized: "auth.mode.api_key")
         case .experimentalLocalSession:
-          return "Codex Session"
+          return String(localized: "auth.mode.codex_session")
       }
     }
   }
@@ -36,7 +36,7 @@ final class RateLimitViewModel: ObservableObject {
 
   @Published private(set) var snapshot: RateLimitSnapshot?
   @Published private(set) var isRefreshing = false
-  @Published private(set) var statusText = "Not refreshed yet"
+  @Published private(set) var statusText = String(localized: "vm.status.not_refreshed")
   @Published private(set) var errorText: String?
   @Published private(set) var launchAtLoginErrorText: String?
   @Published private(set) var burnTrendSymbol = "→"
@@ -163,13 +163,13 @@ final class RateLimitViewModel: ObservableObject {
       try environment.loginItemService.setEnabled(enabled)
       launchAtLoginEnabled = environment.loginItemService.isEnabled
       if enabled && !launchAtLoginEnabled {
-        launchAtLoginErrorText = "Open at login needs approval in System Settings > General > Login Items."
+        launchAtLoginErrorText = String(localized: "vm.error.launch_at_login_approval")
       } else {
         launchAtLoginErrorText = nil
       }
     } catch {
       launchAtLoginEnabled = environment.loginItemService.isEnabled
-      launchAtLoginErrorText = "Could not update Open at login: \(error.localizedDescription)"
+      launchAtLoginErrorText = localizedFormat("vm.error.launch_at_login_update_format", error.localizedDescription)
       logError("launch_at_login_update_failed", error: error)
     }
   }
@@ -200,13 +200,13 @@ final class RateLimitViewModel: ObservableObject {
 
     guard let authToken else {
       if force {
-        statusText = "Waiting for API key"
+        statusText = String(localized: "vm.status.waiting_api_key")
       }
       return
     }
 
     guard !trimmedModel.isEmpty else {
-      errorText = "Model cannot be empty."
+      errorText = String(localized: "vm.error.model_empty")
       return
     }
 
@@ -214,13 +214,13 @@ final class RateLimitViewModel: ObservableObject {
       let newSnapshot = try await environment.openAIRateLimitService.fetchRateLimit(authToken: authToken, model: trimmedModel)
       snapshot = newSnapshot
       errorText = nil
-      statusText = "Last checked \(Self.timeFormatter.string(from: newSnapshot.fetchedAt))"
+      statusText = localizedFormat("vm.status.last_checked_format", Self.timeFormatter.string(from: newSnapshot.fetchedAt))
       updateBurnTrend(with: newSnapshot)
       scheduleNextAutomaticRefreshAfterSuccess(usagePercent: highestOfficialUsagePercent(from: newSnapshot))
     } catch {
       logError("official_api_refresh_failed", error: error)
       errorText = mappedErrorText(error)
-      statusText = "Last attempt \(Self.timeFormatter.string(from: Date()))"
+      statusText = localizedFormat("vm.status.last_attempt_format", Self.timeFormatter.string(from: Date()))
       scheduleNextAutomaticRefreshAfterFailure()
     }
   }
@@ -245,7 +245,7 @@ final class RateLimitViewModel: ObservableObject {
         fetchedAt: Date()
       )
       errorText = nil
-      statusText = "Local session checked \(Self.timeFormatter.string(from: Date()))"
+      statusText = localizedFormat("vm.status.local_checked_format", Self.timeFormatter.string(from: Date()))
       previousEstimatedHourlyBurnPercent = nil
       burnTrendSymbol = "→"
       scheduleNextAutomaticRefreshAfterSuccess(usagePercent: localSnapshot.primaryUsedPercent)
@@ -254,7 +254,7 @@ final class RateLimitViewModel: ObservableObject {
       snapshot = nil
       errorText = error.localizedDescription
       if force {
-        statusText = "Local session attempt \(Self.timeFormatter.string(from: Date()))"
+        statusText = localizedFormat("vm.status.local_attempt_format", Self.timeFormatter.string(from: Date()))
       }
       scheduleNextAutomaticRefreshAfterFailure()
     }
@@ -263,7 +263,7 @@ final class RateLimitViewModel: ObservableObject {
   private func resolveAuthToken() -> String? {
     let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmedKey.isEmpty else {
-      errorText = "Add an OpenAI API key."
+      errorText = String(localized: "vm.error.add_api_key")
       return nil
     }
     return trimmedKey
@@ -274,7 +274,7 @@ final class RateLimitViewModel: ObservableObject {
        statusCode == 401,
        body.localizedCaseInsensitiveContains("incorrect api key")
     {
-      return "Incorrect API key. Paste a valid OpenAI API key."
+      return String(localized: "vm.error.incorrect_api_key")
     }
     return error.localizedDescription
   }
@@ -363,6 +363,10 @@ final class RateLimitViewModel: ObservableObject {
 
   private func logError(_ event: String, error: Error) {
     print("[RateLimitMonitor] \(event): \(error.localizedDescription)")
+  }
+
+  private func localizedFormat(_ key: String.LocalizationValue, _ arguments: CVarArg...) -> String {
+    String(format: String(localized: key), locale: Locale.current, arguments: arguments)
   }
 
 }
